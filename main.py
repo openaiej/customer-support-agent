@@ -4,7 +4,12 @@ dotenv.load_dotenv()
 from openai import OpenAI
 import asyncio
 import streamlit as st
-from agents import Runner, SQLiteSession, InputGuardrailTripwireTriggered
+from agents import (
+    Runner,
+    SQLiteSession,
+    InputGuardrailTripwireTriggered,
+    OutputGuardrailTripwireTriggered,
+)
 from models import UserAccountContext
 from my_agents.triage_agent import triage_agent
 
@@ -20,7 +25,7 @@ user_account_ctx = UserAccountContext(
 if "session" not in st.session_state:
     st.session_state["session"] = SQLiteSession(
         "chat-history",
-        "customer-support-memory.db",
+        "restaurant-bot-memory.db",
     )
 session = st.session_state["session"]
 
@@ -71,7 +76,7 @@ async def run_agent(message):
 
                     if st.session_state["agent"].name != event.new_agent.name:
                         
-                        st.write(f"🤖 Transfered from {st.session_state["agent"].name} to {event.new_agent.name}")
+                        st.write(f"🤖 {st.session_state['agent'].name} → {event.new_agent.name}로 연결됨")
 
                         st.session_state["agent"] = event.new_agent
 
@@ -81,11 +86,13 @@ async def run_agent(message):
                         response = ""
 
         except InputGuardrailTripwireTriggered:
-            st.write("I can't help you with that.")
+            st.write("메뉴, 주문, 예약, 불만 관련해서만 도와드릴 수 있어요.")
+        except OutputGuardrailTripwireTriggered:
+            st.write("죄송해요, 적절한 응답을 찾지 못했어요. 다시 시도해주세요.")
 
 
 message = st.chat_input(
-    "Write a message for your assistant",
+    "메뉴·주문·예약·불만 문의해주세요",
 )
 
 if message:

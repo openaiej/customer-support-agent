@@ -1,3 +1,12 @@
+"""
+tools.py - 레스토랑 봇 AI 에이전트가 사용하는 함수형 도구 모음
+
+Restaurant Bot Agent Tools - 식당 봇 에이전트가 호출할 수 있는 function tools
+- Menu Tools: 메뉴 정보, 재료, 알레르기 조회
+- Order Tools: 주문 접수, 주문 확인
+- Reservation Tools: 예약 가능 여부 확인, 테이블 예약
+"""
+
 import streamlit as st
 from agents import function_tool, AgentHooks, Agent, Tool, RunContextWrapper
 from models import UserAccountContext
@@ -6,393 +15,358 @@ from datetime import datetime, timedelta
 
 
 # =============================================================================
-# TECHNICAL SUPPORT TOOLS
+# 샘플 메뉴 데이터 (실제 운영 시 DB/API로 교체)
+# =============================================================================
+MENU_ITEMS = {
+    "파스타 알프레도": {
+        "price": 18000,
+        "ingredients": ["파스타", "크림", "파르메산", "버터", "마늘"],
+        "allergens": ["우유", "계란", "글루텐"],
+        "description": "부드러운 크림 소스의 클래식 파스타",
+    },
+    "스테이크": {
+        "price": 35000,
+        "ingredients": ["소고기", "소금", "후추", "버터", "로즈마리"],
+        "allergens": ["없음"],
+        "description": "미디엄 레어 추천, 200g 안심 스테이크",
+    },
+    "시저 샐러드": {
+        "price": 12000,
+        "ingredients": ["로메인", "시저 드레싱", "파르메산", "크루통", "레몬"],
+        "allergens": ["우유", "계란", "글루텐", "어류(앵초비)"],
+        "description": "클래식 시저 드레싱의 신선한 샐러드",
+    },
+    "연어 그릴": {
+        "price": 28000,
+        "ingredients": ["노르웨이 연어", "레몬", "다일", "올리브오일"],
+        "allergens": ["어류"],
+        "description": "그릴에 구운 노르웨이 연어 필렛",
+    },
+    "비건 부들볶음": {
+        "price": 15000,
+        "ingredients": ["부들", "두부", "야채", "간장", "참기름"],
+        "allergens": ["대두"],
+        "description": "채식 메뉴, 글루텐 프리",
+    },
+}
+
+
+# =============================================================================
+# MENU TOOLS - 메뉴 도구 (Menu Agent용)
 # =============================================================================
 
 
 @function_tool
-def run_diagnostic_check(
-    context: UserAccountContext, product_name: str, issue_description: str
+def get_menu_info(
+    context: UserAccountContext, category: str = "all"
 ) -> str:
     """
-    Run a diagnostic check on the customer's product to identify potential issues.
+    메뉴 항목과 가격, 설명을 조회합니다.
+    Look up menu items with prices and descriptions.
 
     Args:
-        product_name: Name of the product experiencing issues
-        issue_description: Description of the problem
+        category: 메뉴 카테고리 (all, main, salad, pasta 등) / Menu category
     """
-    diagnostics = [
-        "✅ Server connectivity: Normal",
-        "✅ API endpoints: Responsive",
-        "⚠️  Cache memory: 85% full (recommend clearing)",
-        "✅ Database connections: Stable",
-        "⚠️  Last update: 7 days ago (update available)",
-    ]
-
-    return f"🔍 Diagnostic results for {product_name}:\n" + "\n".join(diagnostics)
+    lines = ["📋 오늘의 메뉴\n"]
+    for name, info in MENU_ITEMS.items():
+        lines.append(f"• {name}: ₩{info['price']:,} - {info['description']}")
+    return "\n".join(lines)
 
 
 @function_tool
-def provide_troubleshooting_steps(context: UserAccountContext, issue_type: str) -> str:
+def check_ingredients(
+    context: UserAccountContext, dish_name: str
+) -> str:
     """
-    Provide step-by-step troubleshooting instructions for common issues.
+    특정 요리의 재료 목록을 조회합니다.
+    Look up ingredients for a specific dish.
 
     Args:
-        issue_type: Type of issue (connection, login, performance, crash, etc.)
+        dish_name: 요리명 / Name of the dish
     """
-    steps_map = {
-        "connection": [
-            "1. Check internet connectivity",
-            "2. Clear browser cache and cookies",
-            "3. Disable browser extensions temporarily",
-            "4. Try incognito/private browsing mode",
-            "5. Restart your router/modem",
-        ],
-        "login": [
-            "1. Verify username and password",
-            "2. Check caps lock is off",
-            "3. Clear browser cache",
-            "4. Try password reset if needed",
-            "5. Disable VPN temporarily",
-        ],
-        "performance": [
-            "1. Close unnecessary browser tabs",
-            "2. Clear browser cache",
-            "3. Check available RAM and storage",
-            "4. Update your browser",
-            "5. Restart the application",
-        ],
-        "crash": [
-            "1. Update to latest version",
-            "2. Restart the application",
-            "3. Check system requirements",
-            "4. Disable conflicting software",
-            "5. Run in safe mode",
-        ],
+    for name, info in MENU_ITEMS.items():
+        if dish_name in name or name in dish_name:
+            ingredients = ", ".join(info["ingredients"])
+            return f"🍽️ {name} 재료:\n{ingredients}"
+    return f"'{dish_name}' 메뉴를 찾을 수 없어요. 다른 메뉴명으로 문의해주세요."
+
+
+@function_tool
+def check_allergens(
+    context: UserAccountContext, dish_name: str = "", allergen: str = ""
+) -> str:
+    """
+    요리별 알레르기 정보를 조회하거나, 특정 알레르기 유발 식품이 포함된 메뉴를 확인합니다.
+    Look up allergen info by dish, or find dishes containing a specific allergen.
+
+    Args:
+        dish_name: 요리명 (특정 메뉴 조회 시) / Dish name for specific menu lookup
+        allergen: 알레르기 유발 식품 (우유, 계란, 글루텐, 견과류, 갑각류, 어류, 대두 등)
+                 Allergen to check (dairy, egg, gluten, nuts, shellfish, fish, soy)
+    """
+    allergen_map = {
+        "우유": "우유", "dairy": "우유", "milk": "우유",
+        "계란": "계란", "egg": "계란", "eggs": "계란",
+        "글루텐": "글루텐", "gluten": "글루텐",
+        "견과류": "견과류", "nuts": "견과류",
+        "갑각류": "갑각류", "shellfish": "갑각류",
+        "어류": "어류", "fish": "어류",
+        "대두": "대두", "soy": "대두",
     }
 
-    steps = steps_map.get(
-        issue_type.lower(),
-        [
-            "1. Restart the application",
-            "2. Check for updates",
-            "3. Contact support with error details",
-        ],
+    if dish_name:
+        for name, info in MENU_ITEMS.items():
+            if dish_name in name or name in dish_name:
+                allergens = ", ".join(info["allergens"])
+                return f"⚠️ {name} 알레르기 정보:\n{allergens}"
+        return f"'{dish_name}' 메뉴를 찾을 수 없어요."
+
+    if allergen:
+        norm = allergen_map.get(allergen.lower(), allergen)
+        safe = []
+        contains = []
+        for name, info in MENU_ITEMS.items():
+            if norm in info["allergens"] or any(norm in a for a in info["allergens"]):
+                contains.append(name)
+            else:
+                safe.append(name)
+        result = [f"🔍 '{allergen}' 검색 결과\n"]
+        if contains:
+            result.append(f"❌ 포함: {', '.join(contains)}")
+        if safe:
+            result.append(f"✅ 해당 없음 (선택 가능): {', '.join(safe)}")
+        return "\n".join(result)
+
+    lines = ["⚠️ 전체 메뉴 알레르기 정보\n"]
+    for name, info in MENU_ITEMS.items():
+        lines.append(f"• {name}: {', '.join(info['allergens'])}")
+    return "\n".join(lines)
+
+
+# =============================================================================
+# ORDER TOOLS - 주문 도구 (Order Agent용)
+# =============================================================================
+
+
+@function_tool
+def place_order(
+    context: UserAccountContext,
+    items: str,
+    order_type: str = "dine_in",
+    special_requests: str = "",
+) -> str:
+    """
+    주문을 접수합니다. (매장식/포장/배달)
+    Place an order (dine-in, takeout, or delivery).
+
+    Args:
+        items: 주문 품목 (예: "파스타 알프레도 1, 시저 샐러드 2")
+              Order items
+        order_type: 주문 유형 (dine_in, takeout, delivery)
+        special_requests: 특별 요청 (덜 맵게, 아이스 없이 등)
+                         Special requests
+    """
+    order_id = f"ORD-{random.randint(1000, 9999)}"
+    wait_mins = random.randint(15, 25)
+    order_type_ko = {"dine_in": "매장 식사", "takeout": "포장", "delivery": "배달"}.get(
+        order_type, order_type
     )
 
-    context.add_troubleshooting_step(f"Provided {issue_type} troubleshooting steps")
-    return f"🛠️ Troubleshooting steps for {issue_type}:\n" + "\n".join(steps)
+    return f"""
+✅ 주문 접수 완료
+🔢 주문번호: {order_id}
+📋 주문: {items}
+🍽️ 유형: {order_type_ko}
+⏱️ 예상 대기: {wait_mins}분
+{f'📝 특별 요청: {special_requests}' if special_requests else ''}
+손님: {context.name}
+    """.strip()
 
 
 @function_tool
-def escalate_to_engineering(
-    context: UserAccountContext, issue_summary: str, priority: str = "medium"
-) -> str:
+def confirm_order(context: UserAccountContext, order_id: str) -> str:
     """
-    Escalate a technical issue to the engineering team.
+    주문 내용을 확인합니다.
+    Confirm order details and status.
 
     Args:
-        issue_summary: Brief summary of the technical issue
-        priority: Priority level (low, medium, high, critical)
+        order_id: 주문번호 / Order ID
     """
-    ticket_id = f"ENG-{random.randint(10000, 99999)}"
-
+    statuses = ["조리 중", "준비 완료", "서빙 완료"]
+    status = random.choice(statuses)
     return f"""
-🚀 Issue escalated to Engineering Team
-📋 Ticket ID: {ticket_id}
-⚡ Priority: {priority.upper()}
-📝 Summary: {issue_summary}
-🕐 Expected response: {2 if context.is_premium_customer() else 4} hours
+📦 주문 확인
+🔢 주문번호: {order_id}
+🏷️ 상태: {status}
+👤 손님: {context.name}
     """.strip()
 
 
 # =============================================================================
-# BILLING SUPPORT TOOLS
+# RESERVATION TOOLS - 예약 도구 (Reservation Agent용)
 # =============================================================================
 
 
 @function_tool
-def lookup_billing_history(context: UserAccountContext, months_back: int = 6) -> str:
-    """
-    Look up customer's billing history and payment records.
-
-    Args:
-        months_back: Number of months to look back (default 6)
-    """
-    payments = []
-    for i in range(months_back):
-        date = datetime.now() - timedelta(days=30 * i)
-        amount = random.choice([29.99, 49.99, 99.99])
-        status = random.choice(["Paid", "Paid", "Paid", "Failed"])
-        payments.append(f"• {date.strftime('%b %Y')}: ${amount} - {status}")
-
-    return f"💳 Billing History (Last {months_back} months):\n" + "\n".join(payments)
-
-
-@function_tool
-def process_refund_request(
-    context: UserAccountContext, refund_amount: float, reason: str
+def check_availability(
+    context: UserAccountContext, date: str, time: str, party_size: int = 2
 ) -> str:
     """
-    Process a refund request for the customer.
+    요청한 날짜·시간의 예약 가능 여부를 확인합니다.
+    Check table availability for the requested date and time.
 
     Args:
-        refund_amount: Amount to refund
-        reason: Reason for the refund
+        date: 예약 희망일 (YYYY-MM-DD 또는 "오늘", "내일")
+              Desired date
+        time: 예약 희망 시간 (예: "18:00", "저녁 7시")
+              Desired time
+        party_size: 인원 수 / Number of guests
     """
-    processing_days = 3 if context.is_premium_customer() else 5
-    refund_id = f"REF-{random.randint(100000, 999999)}"
-
+    # 데모용: 랜덤으로 가능/불가 반환
+    available = random.choice([True, True, False])
+    if available:
+        return f"""
+✅ 예약 가능해요
+📅 {date} {time}
+👥 {party_size}명
+원하시면 바로 예약 잡아드릴게요.
+        """.strip()
     return f"""
-✅ Refund request processed
-🔗 Refund ID: {refund_id}
-💰 Amount: ${refund_amount}
-📝 Reason: {reason}
-⏱️ Processing time: {processing_days} business days
-💳 Refund will appear on original payment method
-    """.strip()
+❌ 해당 시간 예약이 마감되었어요
+📅 {date} {time}
+👥 {party_size}명
+다른 시간대를 알려주시면 확인해드릴게요.
+        """.strip()
 
 
 @function_tool
-def update_payment_method(context: UserAccountContext, payment_type: str) -> str:
-    """
-    Help customer update their payment method.
-
-    Args:
-        payment_type: Type of payment method (credit_card, paypal, bank_transfer)
-    """
-    return f"""
-💳 Payment method update initiated
-📋 Type: {payment_type.replace('_', ' ').title()}
-🔒 Secure link sent to: {context.email}
-⏰ Link expires in: 24 hours
-✅ No interruption to current service
-    """.strip()
-
-
-@function_tool
-def apply_billing_credit(
-    context: UserAccountContext, credit_amount: float, reason: str
+def make_reservation(
+    context: UserAccountContext,
+    date: str,
+    time: str,
+    party_size: int,
+    guest_name: str = "",
+    contact: str = "",
+    special_requests: str = "",
 ) -> str:
     """
-    Apply account credit for billing issues or compensation.
+    테이블 예약을 완료합니다.
+    Complete a table reservation.
 
     Args:
-        credit_amount: Amount of credit to apply
-        reason: Reason for the credit
+        date: 예약일 / Reservation date
+        time: 예약 시간 / Reservation time
+        party_size: 인원 수 / Number of guests
+        guest_name: 예약자명 (미입력 시 context.name 사용)
+        contact: 연락처 (전화 또는 이메일)
+        special_requests: 특별 요청 (생일, 유아용 의자 등)
     """
+    res_id = f"RES-{random.randint(1000, 9999)}"
+    name = guest_name or context.name
+    contact_info = contact or (context.email or "미등록")
+
     return f"""
-🎁 Account credit applied
-💰 Credit amount: ${credit_amount}
-📝 Reason: {reason}
-⚡ Applied to account: {context.customer_id}
-📧 Confirmation sent to: {context.email}
+✅ 예약 완료
+🔢 예약번호: {res_id}
+📅 {date} {time}
+👥 {party_size}명
+👤 예약자: {name}
+📞 연락처: {contact_info}
+{f'📝 특별 요청: {special_requests}' if special_requests else ''}
+※ 15분 이상 지연 시 예약이 취소될 수 있어요.
     """.strip()
 
 
 # =============================================================================
-# ORDER MANAGEMENT TOOLS
+# COMPLAINTS TOOLS - 불만 처리 도구 (Complaints Agent용)
 # =============================================================================
 
 
 @function_tool
-def lookup_order_status(context: UserAccountContext, order_number: str) -> str:
-    """
-    Look up the current status and details of an order.
-
-    Args:
-        order_number: Customer's order number
-    """
-    statuses = ["processing", "shipped", "in_transit", "delivered"]
-    current_status = random.choice(statuses)
-
-    tracking_number = f"1Z{random.randint(100000, 999999)}"
-    estimated_delivery = datetime.now() + timedelta(days=random.randint(1, 5))
-
-    return f"""
-📦 Order Status: {order_number}
-🏷️ Status: {current_status.title()}
-🚚 Tracking: {tracking_number}
-📅 Estimated delivery: {estimated_delivery.strftime('%B %d, %Y')}
-📍 Shipping to: {context.email}
-    """.strip()
-
-
-@function_tool
-def initiate_return_process(
-    context: UserAccountContext, order_number: str, return_reason: str, items: str
+def log_complaint(
+    context: UserAccountContext,
+    complaint_type: str,
+    description: str,
+    order_id: str = "",
 ) -> str:
     """
-    Start the return process for an order.
+    고객 불만을 기록합니다.
+    Log a customer complaint for tracking and follow-up.
 
     Args:
-        order_number: Order number to return
-        return_reason: Reason for return
-        items: Items being returned
+        complaint_type: 불만 유형 (food_quality, wait_time, wrong_order, service, cleanliness, other)
+        description: 불만 상세 설명
+        order_id: 관련 주문번호 (있을 경우)
     """
-    return_id = f"RET-{random.randint(100000, 999999)}"
-    return_label_fee = 0 if context.is_premium_customer() else 5.99
-
+    complaint_id = f"CMP-{random.randint(1000, 9999)}"
     return f"""
-📦 Return initiated
-🔗 Return ID: {return_id}
-📋 Order: {order_number}
-📝 Items: {items}
-💰 Return label fee: ${return_label_fee}
-📧 Return label sent to: {context.email}
-⏰ Return window: 30 days
+📋 불만 접수 완료
+🔢 접수번호: {complaint_id}
+📂 유형: {complaint_type}
+📝 내용: {description}
+{f'📦 관련 주문: {order_id}' if order_id else ''}
+👤 고객: {context.name}
+담당자가 확인 후 연락드릴게요.
     """.strip()
 
 
 @function_tool
-def schedule_redelivery(
-    context: UserAccountContext, tracking_number: str, preferred_date: str
+def offer_compensation(
+    context: UserAccountContext,
+    compensation_type: str,
+    value: str = "",
+    reason: str = "",
 ) -> str:
     """
-    Schedule a redelivery for a failed delivery attempt.
+    고객에게 보상(할인, 무료 메뉴 등)을 제안합니다.
+    Offer compensation (discount, free item, etc.) to the customer.
 
     Args:
-        tracking_number: Package tracking number
-        preferred_date: Customer's preferred delivery date
+        compensation_type: 보상 유형 (discount_next_visit, free_dessert, free_drink, refund, replacement)
+        value: 보상 내용 (예: "20%", "디저트 1인분")
+        reason: 보상 사유
     """
+    code = f"COMP-{random.randint(10000, 99999)}"
     return f"""
-🚚 Redelivery scheduled
-📦 Tracking: {tracking_number}
-📅 New delivery date: {preferred_date}
-🏠 Address confirmed: {context.email}
-📞 Driver will call 30 minutes before delivery
+🎁 보상 제안
+📋 유형: {compensation_type}
+💰 내용: {value or '담당자 확인 후 안내'}
+📝 사유: {reason or '서비스 불편에 대한 사과'}
+🔑 사용 코드: {code}
+다음 방문 시 매장에 보여주시면 적용해드릴게요.
     """.strip()
 
 
 @function_tool
-def expedite_shipping(context: UserAccountContext, order_number: str) -> str:
+def escalate_complaint(
+    context: UserAccountContext,
+    reason: str,
+    urgency: str = "normal",
+) -> str:
     """
-    Upgrade shipping speed for an order (premium customers only).
+    심각한 불만을 매니저/관리자에게 에스컬레이션합니다.
+    Escalate a serious complaint to manager/supervisor.
 
     Args:
-        order_number: Order to expedite
+        reason: 에스컬레이션 사유
+        urgency: 긴급도 (low, normal, high, critical)
     """
-    if not context.is_premium_customer():
-        return "❌ Expedited shipping upgrade requires Premium membership"
-
+    ticket_id = f"ESC-{random.randint(1000, 9999)}"
     return f"""
-⚡ Shipping expedited
-📦 Order: {order_number}
-🚀 Upgraded to: Next-day delivery
-💰 No additional charge (Premium benefit)
-📧 Updated tracking sent to: {context.email}
+⬆️ 매니저 연결 요청
+🔢 티켓: {ticket_id}
+📝 사유: {reason}
+⚡ 긴급도: {urgency}
+👤 고객: {context.name}
+매니저가 30분 이내 연락드릴 예정이에요.
     """.strip()
 
 
 # =============================================================================
-# ACCOUNT MANAGEMENT TOOLS
+# AgentToolUsageLoggingHooks - 에이전트 도구 사용 로깅 훅
 # =============================================================================
-
-
-@function_tool
-def reset_user_password(context: UserAccountContext, email: str) -> str:
-    """
-    Send password reset instructions to the customer's email.
-
-    Args:
-        email: Email address to send reset instructions
-    """
-    reset_token = f"RST-{random.randint(100000, 999999)}"
-
-    return f"""
-🔐 Password reset initiated
-📧 Reset link sent to: {email}
-🔗 Reset token: {reset_token}
-⏰ Link expires in: 1 hour
-🛡️ For security, link is single-use only
-    """.strip()
-
-
-@function_tool
-def enable_two_factor_auth(context: UserAccountContext, method: str = "app") -> str:
-    """
-    Help customer set up two-factor authentication.
-
-    Args:
-        method: 2FA method (app, sms, email)
-    """
-    setup_code = f"2FA-{random.randint(100000, 999999)}"
-
-    return f"""
-🔒 Two-Factor Authentication Setup
-📱 Method: {method.upper()}
-🔑 Setup code: {setup_code}
-📧 Instructions sent to: {context.email}
-⚡ Enhanced security activated
-    """.strip()
-
-
-@function_tool
-def update_account_email(
-    context: UserAccountContext, old_email: str, new_email: str
-) -> str:
-    """
-    Process account email address change.
-
-    Args:
-        old_email: Current email address
-        new_email: New email address
-    """
-    verification_code = f"VER-{random.randint(100000, 999999)}"
-
-    return f"""
-📧 Email update requested
-📤 From: {old_email}
-📥 To: {new_email}
-🔐 Verification code: {verification_code}
-⏰ Code expires in: 30 minutes
-✅ Change will be activated after verification
-    """.strip()
-
-
-@function_tool
-def deactivate_account(
-    context: UserAccountContext, reason: str, feedback: str = ""
-) -> str:
-    """
-    Process account deactivation request.
-
-    Args:
-        reason: Reason for account deactivation
-        feedback: Optional feedback from customer
-    """
-    return f"""
-⚠️ Account deactivation initiated
-👤 Account: {context.customer_id}
-📝 Reason: {reason}
-💬 Feedback: {feedback if feedback else 'None provided'}
-⏰ Account will be deactivated in 24 hours
-🔄 Can be reactivated within 30 days
-📧 Confirmation sent to: {context.email}
-    """.strip()
-
-
-@function_tool
-def export_account_data(context: UserAccountContext, data_types: str) -> str:
-    """
-    Generate export of customer's account data.
-
-    Args:
-        data_types: Types of data to export (profile, orders, billing, etc.)
-    """
-    export_id = f"EXP-{random.randint(100000, 999999)}"
-
-    return f"""
-📊 Data export requested
-🔗 Export ID: {export_id}
-📋 Data types: {data_types}
-⏱️ Processing time: 2-4 hours
-📧 Download link will be sent to: {context.email}
-🔒 Link expires in: 7 days
-    """.strip()
-
-
 class AgentToolUsageLoggingHooks(AgentHooks):
+    """에이전트 도구 사용·handoff 시 Streamlit 사이드바에 로그를 출력하는 훅"""
 
     async def on_tool_start(
         self,
