@@ -13,7 +13,8 @@ from agents import (
 from models import UserAccountContext
 from my_agents.triage_agent import triage_agent
 
-client = OpenAI()
+#client = OpenAI()
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"]) #스트림릿 베포를 위해해
 
 user_account_ctx = UserAccountContext(
     customer_id=1,
