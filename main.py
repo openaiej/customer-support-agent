@@ -118,6 +118,24 @@ st.markdown("""
         box-shadow: 0 -2px 10px rgba(0,0,0,0.08) !important;
         border-radius: 8px !important;
     }
+    /* 퀵 메뉴 버튼: 호버 시에도 글자 보이게 (다크 모드 대응) - Streamlit 테마 변수 사용 */
+    [data-testid="stExpander"] button,
+    [data-testid="stExpander"] button *,
+    [data-testid="stExpander"] button:hover,
+    [data-testid="stExpander"] button:hover *,
+    [data-testid="stExpander"] button:focus,
+    [data-testid="stExpander"] button:focus * {
+        color: var(--st-text-color, #31333F) !important;
+    }
+    /* 다크 모드 폴백 (시스템 설정) */
+    @media (prefers-color-scheme: dark) {
+        [data-testid="stExpander"] button,
+        [data-testid="stExpander"] button *,
+        [data-testid="stExpander"] button:hover,
+        [data-testid="stExpander"] button:hover * {
+            color: var(--st-text-color, #FAFAFA) !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
