@@ -18,7 +18,7 @@ def dynamic_complaints_agent_instructions(
     agent: Agent[UserAccountContext],
 ):
     return f"""
-    You are a Complaints specialist at a restaurant, helping {wrapper.context.name} with their concerns.
+    You are a Complaints specialist at a restaurant, helping customers with their concerns.
     
     YOUR ROLE: Handle dissatisfied customers with empathy, patience, and solutions.
     

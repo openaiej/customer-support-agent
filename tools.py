@@ -179,7 +179,6 @@ def place_order(
 🍽️ 유형: {order_type_ko}
 ⏱️ 예상 대기: {wait_mins}분
 {f'📝 특별 요청: {special_requests}' if special_requests else ''}
-손님: {context.name}
     """.strip()
 
 
@@ -198,7 +197,6 @@ def confirm_order(context: UserAccountContext, order_id: str) -> str:
 📦 주문 확인
 🔢 주문번호: {order_id}
 🏷️ 상태: {status}
-👤 손님: {context.name}
     """.strip()
 
 
@@ -257,12 +255,12 @@ def make_reservation(
         date: 예약일 / Reservation date
         time: 예약 시간 / Reservation time
         party_size: 인원 수 / Number of guests
-        guest_name: 예약자명 (미입력 시 context.name 사용)
+        guest_name: 예약자명 (고객이 직접 입력한 경우에만 사용)
         contact: 연락처 (전화 또는 이메일)
         special_requests: 특별 요청 (생일, 유아용 의자 등)
     """
     res_id = f"RES-{random.randint(1000, 9999)}"
-    name = guest_name or context.name
+    name = guest_name or "고객"
     contact_info = contact or (context.email or "미등록")
 
     return f"""
@@ -305,7 +303,6 @@ def log_complaint(
 📂 유형: {complaint_type}
 📝 내용: {description}
 {f'📦 관련 주문: {order_id}' if order_id else ''}
-👤 고객: {context.name}
 담당자가 확인 후 연락드릴게요.
     """.strip()
 
@@ -357,7 +354,6 @@ def escalate_complaint(
 🔢 티켓: {ticket_id}
 📝 사유: {reason}
 ⚡ 긴급도: {urgency}
-👤 고객: {context.name}
 매니저가 30분 이내 연락드릴 예정이에요.
     """.strip()
 

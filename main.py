@@ -102,35 +102,54 @@ async def run_agent(message):
             st.write("죄송해요, 적절한 응답을 찾지 못했어요. 다시 시도해주세요.")
 
 
-# 자주 하는 질문 버튼
-st.write("**자주 하는 질문**")
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    if st.button("📋 메뉴 추천해주세요", use_container_width=True, key="faq_menu"):
-        st.session_state["faq_message"] = "메뉴 추천해주세요"
-with col2:
-    if st.button("🍽️ 주문하고 싶어요", use_container_width=True, key="faq_order"):
-        st.session_state["faq_message"] = "주문하고 싶어요"
-with col3:
-    if st.button("📅 예약 가능해요?", use_container_width=True, key="faq_reserve"):
-        st.session_state["faq_message"] = "예약 가능해요?"
-with col4:
-    if st.button("😤 환불 요청해요", use_container_width=True, key="faq_refund"):
-        st.session_state["faq_message"] = "환불 요청해요"
+# 퀵 메뉴를 채팅 입력창 바로 위에 고정 (스크롤해도 항상 보임)
+st.markdown("""
+<style>
+    /* 채팅 입력창 공간 확보 */
+    .block-container {
+        padding-bottom: 100px !important;
+    }
+    /* 퀵 메뉴: 스크롤 시 화면 하단에 고정 (채팅 입력창 바로 위) */
+    [data-testid="stExpander"] {
+        position: sticky !important;
+        bottom: 70px !important;
+        z-index: 999 !important;
+        background: var(--background-color, #ffffff) !important;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.08) !important;
+        border-radius: 8px !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-col5, col6, col7, col8 = st.columns(4)
-with col5:
-    if st.button("🥜 알레르기 있는데요", use_container_width=True, key="faq_allergy"):
-        st.session_state["faq_message"] = "견과류 알레르기 있는데 어떤 메뉴 먹을 수 있어요?"
-with col6:
-    if st.button("📦 주문 확인해주세요", use_container_width=True, key="faq_confirm"):
-        st.session_state["faq_message"] = "주문 확인해주세요"
-with col7:
-    if st.button("🕐 영업시간이요", use_container_width=True, key="faq_hours"):
-        st.session_state["faq_message"] = "영업시간이 어떻게 되나요?"
-with col8:
-    if st.button("❌ 주문 잘못 왔어요", use_container_width=True, key="faq_wrong"):
-        st.session_state["faq_message"] = "주문이 잘못 왔어요"
+# 자주 하는 질문 (접었다 펼치기 가능)
+with st.expander("📌 자주 하는 질문", expanded=True):
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        if st.button("📋 메뉴 추천해주세요", use_container_width=True, key="faq_menu"):
+            st.session_state["faq_message"] = "메뉴 추천해주세요"
+    with col2:
+        if st.button("🍽️ 주문하고 싶어요", use_container_width=True, key="faq_order"):
+            st.session_state["faq_message"] = "주문하고 싶어요"
+    with col3:
+        if st.button("📅 예약 가능해요?", use_container_width=True, key="faq_reserve"):
+            st.session_state["faq_message"] = "예약 가능해요?"
+    with col4:
+        if st.button("😤 환불 요청해요", use_container_width=True, key="faq_refund"):
+            st.session_state["faq_message"] = "환불 요청해요"
+
+    col5, col6, col7, col8 = st.columns(4)
+    with col5:
+        if st.button("🥜 알레르기 있는데요", use_container_width=True, key="faq_allergy"):
+            st.session_state["faq_message"] = "견과류 알레르기 있는데 어떤 메뉴 먹을 수 있어요?"
+    with col6:
+        if st.button("📦 주문 확인해주세요", use_container_width=True, key="faq_confirm"):
+            st.session_state["faq_message"] = "주문 확인해주세요"
+    with col7:
+        if st.button("🕐 영업시간이요", use_container_width=True, key="faq_hours"):
+            st.session_state["faq_message"] = "영업시간이 어떻게 되나요?"
+    with col8:
+        if st.button("❌ 주문 잘못 왔어요", use_container_width=True, key="faq_wrong"):
+            st.session_state["faq_message"] = "주문이 잘못 왔어요"
 
 st.write("")  # 간격
 

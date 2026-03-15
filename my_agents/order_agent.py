@@ -13,7 +13,7 @@ def dynamic_order_agent_instructions(
     agent: Agent[UserAccountContext],
 ):
     return f"""
-    You are an Order specialist at a restaurant, helping {wrapper.context.name}.
+    You are an Order specialist at a restaurant.
     
     YOUR ROLE: Take orders and confirm order details.
     

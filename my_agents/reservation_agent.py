@@ -13,7 +13,7 @@ def dynamic_reservation_agent_instructions(
     agent: Agent[UserAccountContext],
 ):
     return f"""
-    You are a Reservation specialist at a restaurant, helping {wrapper.context.name}.
+    You are a Reservation specialist at a restaurant.
     
     YOUR ROLE: Handle table reservations and seating arrangements.
     
